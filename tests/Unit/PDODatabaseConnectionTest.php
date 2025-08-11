@@ -1,6 +1,7 @@
 <?php
 namespace Tests\Unit;
 
+use PDO;
 use PHPUnit\Framework\TestCase;
 use Yshabanei\BugTracker\contracts\DatabaseConnetionInterface;
 use Yshabanei\BugTracker\database\PDODatabaseConnection;
@@ -13,6 +14,16 @@ class PDODatabaseConnectionTest extends TestCase
         $config = $this->getConfig();
         $pdoConnection = new PDODatabaseConnection($config);
         $this->assertInstanceOf(DatabaseConnetionInterface::class, $pdoConnection);
+    }
+
+
+    public function testConnectMethodShouldBeConnectToDatabase()
+    {
+        $config = $this->getConfig();
+        $pdoConnection = new PDODatabaseConnection($config);
+        $pdoConnection->connect();
+        $this->assertInstanceOf(PDO::class, $pdoConnection->getConnection());
+
     }
 
     private function getConfig()
