@@ -6,6 +6,8 @@ use Yshabanei\BugTracker\exceptions\ConfigFileNotFoundException;
 class Config
 {
     /**
+     * فایل config را به صورت رشته (متن) برمی‌گرداند
+     *
      * @throws ConfigFileNotFoundException
      */
     public static function getFileContents(string $filename): string
@@ -20,14 +22,21 @@ class Config
     }
 
     /**
-     * Get config content or a specific key from the config.
-     * Assumes config files return an array.
+     * محتویات فایل config را بارگذاری و به صورت آرایه بازمی‌گرداند
+     * در صورت تعیین کلید، مقدار آن کلید را بازمی‌گرداند
      *
      * @throws ConfigFileNotFoundException
+     * @return array|null
      */
     public static function get(string $filename, $key = null)
     {
-        $config = include realpath(__DIR__ . "/../configs/" . $filename . ".php");
+        $filePath = realpath(__DIR__ . "/../configs/" . $filename . ".php");
+
+        if (!$filePath) {
+            throw new ConfigFileNotFoundException("Config file '$filename.php' not found.");
+        }
+
+        $config = include $filePath;
 
         if (!is_array($config)) {
             return null;
