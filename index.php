@@ -1,4 +1,8 @@
 <?php
+
+use Yshabanei\BugTracker\Helpers\Config;
 require_once './vendor/autoload.php';
 
-echo "orm project";
+$result = Config::get('database');
+var_dump($result);
+
