@@ -48,19 +48,15 @@ class PDOQueryBuilder
             $set[] = "$column = ?";
         }
         $setString = implode(',', $set);
-
         $params = array_values($data);
         $whereParts = [];
-
         foreach ($this->conditions as [$column, $operator, $value]) {
             $whereParts[] = "$column $operator ?";
             $params[] = $value;
         }
-
         $whereString = $whereParts ? ' WHERE ' . implode(' AND ', $whereParts) : '';
-
         $sql = "UPDATE $this->table SET $setString$whereString";
         $query = $this->connection->prepare($sql);
-        return $query->execute($params);
+        return $query->rowCount();
     }
 }
