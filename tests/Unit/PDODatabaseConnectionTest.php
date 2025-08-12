@@ -3,32 +3,62 @@ namespace Tests\Unit;
 
 use PDO;
 use PHPUnit\Framework\TestCase;
-use Yshabanei\BugTracker\contracts\DatabaseConnetionInterface;
-use Yshabanei\BugTracker\database\PDODatabaseConnection;
+use Yshabanei\BugTracker\Contracts\DatabaseConnetionInterface;
+use Yshabanei\BugTracker\Database\DatabaseConnectionException;
+use Yshabanei\BugTracker\Database\PDODatabaseConnection;
+use Yshabanei\BugTracker\Exceptions\ConfigFileNotFoundException;
 use Yshabanei\BugTracker\Helpers\Config;
 
 class PDODatabaseConnectionTest extends TestCase
 {
-    public function testPDODatabaseConnectionImplementDatabaseConnectionInterface()
+    /**
+     * @throws ConfigFileNotFoundException
+     */
+    public function testPDODatabaseConnectionImplementsDatabaseConnectionInterface()
     {
         $config = $this->getConfig();
         $pdoConnection = new PDODatabaseConnection($config);
         $this->assertInstanceOf(DatabaseConnetionInterface::class, $pdoConnection);
     }
 
-
-    public function testConnectMethodShouldBeConnectToDatabase()
+    /**
+     * @throws DatabaseConnectionException
+     * @throws ConfigFileNotFoundException
+     */
+    public function testConnectMethodShouldReturnPDODatabaseConnection()
     {
         $config = $this->getConfig();
         $pdoConnection = new PDODatabaseConnection($config);
-        $pdoConnection->connect();
-        $this->assertInstanceOf(PDO::class, $pdoConnection->getConnection());
-
+        $pdoHandler = $pdoConnection->connect(); // اینجا $this برمی‌گرده
+        $this->assertInstanceOf(PDODatabaseConnection::class, $pdoHandler);
+        return $pdoConnection;
     }
 
-    private function getConfig()
+    /**
+     * @depends testConnectMethodShouldReturnPDODatabaseConnection
+     */
+    public function testConnectMethodShouldBeConnectedToDatabase($pdoConnection)
+    {
+        $this->assertInstanceOf(PDO::class, $pdoConnection->getConnection());
+    }
+
+    /**
+     * @throws ConfigFileNotFoundException
+     */
+    public function testItThrowsExceptionIfConfigIsInvalid()
+    {
+        $this->expectException(DatabaseConnectionException::class);
+        $config = $this->getConfig();
+        $config['database'] = 'invalid_db_name';
+        $pdoConnection = new PDODatabaseConnection($config);
+        $pdoConnection->connect();
+    }
+
+    /**
+     * @throws ConfigFileNotFoundException
+     */
+    private function getConfig(): array
     {
         return Config::get('database', 'pdo_testing');
     }
-
 }
