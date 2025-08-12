@@ -4,9 +4,10 @@ namespace Tests\Unit;
 use PDO;
 use PHPUnit\Framework\TestCase;
 use Yshabanei\BugTracker\Contracts\DatabaseConnetionInterface;
-use Yshabanei\BugTracker\Database\DatabaseConnectionException;
 use Yshabanei\BugTracker\Database\PDODatabaseConnection;
 use Yshabanei\BugTracker\Exceptions\ConfigFileNotFoundException;
+use Yshabanei\BugTracker\exceptions\ConfigNotValidException;
+use Yshabanei\BugTracker\exceptions\DatabaseConnectionException;
 use Yshabanei\BugTracker\Helpers\Config;
 
 class PDODatabaseConnectionTest extends TestCase
@@ -50,6 +51,18 @@ class PDODatabaseConnectionTest extends TestCase
         $this->expectException(DatabaseConnectionException::class);
         $config = $this->getConfig();
         $config['database'] = 'invalid_db_name';
+//        unset($config['db_user']);
+        $pdoConnection = new PDODatabaseConnection($config);
+        $pdoConnection->connect();
+    }
+
+    public function testReceivedConfigHavRequiredKey()
+    {
+        $this->expectException(ConfigNotValidException::class);
+
+        $config = $this->getConfig();
+        unset($config['db_user']);
+
         $pdoConnection = new PDODatabaseConnection($config);
         $pdoConnection->connect();
     }

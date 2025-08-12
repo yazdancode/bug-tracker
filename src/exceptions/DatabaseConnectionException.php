@@ -1,6 +1,6 @@
 <?php
 
-namespace Yshabanei\BugTracker\database;
+namespace Yshabanei\BugTracker\exceptions;
 
 use Exception;
 

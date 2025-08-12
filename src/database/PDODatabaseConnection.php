@@ -4,14 +4,27 @@ namespace Yshabanei\BugTracker\database;
 use PDO;
 use PDOException;
 use Yshabanei\BugTracker\contracts\DatabaseConnetionInterface;
+use Yshabanei\BugTracker\exceptions\ConfigNotValidException;
+use Yshabanei\BugTracker\exceptions\DatabaseConnectionException;
 
 class PDODatabaseConnection implements DatabaseConnetionInterface
 {
     protected $connection;
     protected $config;
 
+    const REQUIRED_CONFIG_KEYS = [
+        'driver',
+        'host',
+        'database',
+        'db_user',
+        'db_password'
+    ];
+
     public function __construct(array $config)
     {
+        if(!$this->isConfigValid($config)){
+            throw new ConfigNotValidException();
+        }
         $this->config = $config;
     }
 
@@ -48,5 +61,12 @@ class PDODatabaseConnection implements DatabaseConnetionInterface
     public function getConnection()
     {
         return $this->connection;
+    }
+
+    private function isConfigValid($config)
+    {
+//        ['driver', 'host', 'db_user']
+        $matches = array_intersect(self::REQUIRED_CONFIG_KEYS, array_keys($config));
+        return count($matches) === count(self::REQUIRED_CONFIG_KEYS);
     }
 }
