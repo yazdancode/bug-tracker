@@ -139,6 +139,39 @@ class PDOQueryBuilderTest extends TestCase
         $this->assertSame($id, $result->id);
     }
 
+    public function testReturnsEmptyArrayWhenRecordNotFound()
+    {
+        $result = $this->queryBuilder
+            ->table('bugs')
+            ->where('user', 'Dummy')
+            ->get();
+        $this->assertIsArray($result);
+        $this->assertEmpty($result);
+
+    }
+
+    public function testItReturnsNullWhenFirstRecordNotFound()
+    {
+        $result = $this->queryBuilder
+            ->table('bugs')
+            ->where('user', 'Dummy')
+            ->first();
+        $this->assertNull($result);
+        $this->assertEmpty($result);
+
+
+    }
+
+    public function testItReturnsZeroWhenRecordNotFoundForUpdate()
+    {
+        $this->multipleInsertIntoDB(4);
+        $result = $this->queryBuilder
+            ->table('bugs')
+            ->where('user', 'Dummy')
+            ->update(['name'=> 'Test']);
+        $this->assertEquals(0,$result);
+    }
+
     /**
      * @throws ConfigFileNotFoundException
      */
