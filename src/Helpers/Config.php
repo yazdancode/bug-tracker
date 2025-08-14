@@ -25,10 +25,12 @@ class Config
      * محتویات فایل config را بارگذاری و به صورت آرایه بازمی‌گرداند
      * در صورت تعیین کلید، مقدار آن کلید را بازمی‌گرداند
      *
-     * @throws ConfigFileNotFoundException
+     * @param string $filename
+     * @param null $key
      * @return array|null
+     * @throws ConfigFileNotFoundException
      */
-    public static function get(string $filename, $key = null)
+    public static function get(string $filename, $key = null): ?array
     {
         $filePath = realpath(__DIR__ . "/../configs/" . $filename . ".php");
 

@@ -35,7 +35,7 @@ class PDODatabaseConnectionTest extends TestCase
         } catch (ConfigNotValidException) {
 
         }
-        $pdoHandler = $pdoConnection->connect(); // اینجا $this برمی‌گرده
+        $pdoHandler = $pdoConnection->connect();
         $this->assertInstanceOf(PDODatabaseConnection::class, $pdoHandler);
         return $pdoConnection;
     }
