@@ -85,6 +85,26 @@ class PDOQueryBuilder
         return $query->rowCount();
     }
 
+    public function get(array $columns = ['*']): array
+    {
+        $columnsString = implode(',', $columns);
+
+        $params = [];
+        $whereParts = [];
+        foreach ($this->conditions as [$column, $operator, $value]) {
+            $whereParts[] = "$column $operator ?";
+            $params[] = $value;
+        }
+
+        $whereString = $whereParts ? ' WHERE ' . implode(' AND ', $whereParts) : '';
+
+        $sql = "SELECT {$columnsString} FROM {$this->table}{$whereString}";
+        $query = $this->connection->prepare($sql);
+        $query->execute($params);
+
+        return $query->fetchAll(PDO::FETCH_ASSOC);
+    }
+
     public function truncateAllTable()
     {
         $query = $this->connection->prepare("SHOW TABLES");

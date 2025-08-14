@@ -64,16 +64,30 @@ class PDOQueryBuilderTest extends TestCase
      */
     public function testItCanDeleteRecord()
     {
-        $this->insertIntoDb();
-        $this->insertIntoDb();
-        $this->insertIntoDb();
-        $this->insertIntoDb();
+        $this->multipleInsertIntoDB(4);
 
         $result = $this->queryBuilder
             ->table('bugs')
             ->where('user', 'Mehrdad Sami')
             ->delete();
         $this->assertEquals(4, $result);
+    }
+
+
+    public function testItCanFetchData()
+    {
+        $this->multipleInsertIntoDB(4);
+        $this->multipleInsertIntoDB(10, ['user'=>'Morteza Ahmadi']);
+
+        $result = $this->queryBuilder
+            ->table('bugs')
+            ->where('user', 'Morteza Ahmadi')
+            ->get();
+        var_dump($result);
+        $this->assertIsArray($result);
+        $this->assertCount(10, $result);
+
+
     }
     /**
      * @throws ConfigFileNotFoundException
@@ -93,6 +107,15 @@ class PDOQueryBuilderTest extends TestCase
         ], $options);
 
         return $this->queryBuilder->table('bugs')->create($data);
+    }
+
+    private function multipleInsertIntoDB($count, $options=[])
+    {
+        for ($i = 1; $i <=$count; $i++){
+            $this->insertIntoDb($options);
+        }
+
+
     }
 
     public function tearDown(): void
