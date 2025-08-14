@@ -64,6 +64,28 @@ class PDOQueryBuilder
         return $query->rowCount();
     }
 
+    public function delete(): int
+    {
+        if (empty($this->conditions)) {
+            throw new \Exception("Cannot delete without conditions.");
+        }
+
+        $whereParts = [];
+        $params = [];
+        foreach ($this->conditions as [$column, $operator, $value]) {
+            $whereParts[] = "$column $operator ?";
+            $params[] = $value;
+        }
+
+        $whereString = ' WHERE ' . implode(' AND ', $whereParts);
+        $sql = "DELETE FROM {$this->table}{$whereString}";
+        $query = $this->connection->prepare($sql);
+        $query->execute($params);
+
+        return $query->rowCount();
+    }
+
+
 
     public function truncateAllTable()
     {

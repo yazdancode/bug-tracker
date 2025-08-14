@@ -45,6 +45,22 @@ class PDOQueryBuilderTest extends TestCase
         $this->assertEquals(1, $result);
     }
 
+    public function testItCanDeleteRecord()
+    {
+        $this->insertIntoDb();
+        $this->insertIntoDb();
+        $this->insertIntoDb();
+        $this->insertIntoDb();
+
+        $result = $this->queryBuilder
+            ->table('bugs')
+            ->where('user', 'Mehrdad Sami')
+            ->delete();
+        $this->assertEquals(4, $result);
+
+
+    }
+
     /**
      * @throws ConfigFileNotFoundException
      */
