@@ -25,10 +25,10 @@ class PDOQueryBuilder
     public function create(array $data): int
     {
         $placeholders = array_fill(0, count($data), '?');
-        $fields = implode(',', array_keys($data));
+        $fields = implode(',', array_map(fn($col) => "`$col`", array_keys($data)));
         $placeholdersString = implode(',', $placeholders);
 
-        $sql = "INSERT INTO $this->table ($fields) VALUES ($placeholdersString)";
+        $sql = "INSERT INTO `{$this->table}` ($fields) VALUES ($placeholdersString)";
         $query = $this->connection->prepare($sql);
         $query->execute(array_values($data));
 
@@ -37,7 +37,7 @@ class PDOQueryBuilder
 
     public function where(string $column, $value, string $operator = '='): self
     {
-        $this->conditions[] = [$column, $operator, $value];
+        $this->conditions[] = ["`$column`", $operator, $value];
         return $this;
     }
 
@@ -45,7 +45,7 @@ class PDOQueryBuilder
     {
         $set = [];
         foreach ($data as $column => $value) {
-            $set[] = "$column = ?";
+            $set[] = "`$column` = ?";
         }
         $setString = implode(',', $set);
 
@@ -58,9 +58,11 @@ class PDOQueryBuilder
         }
         $whereString = $whereParts ? ' WHERE ' . implode(' AND ', $whereParts) : '';
 
-        $sql = "UPDATE {$this->table} SET {$setString}{$whereString}";
+        $sql = "UPDATE `{$this->table}` SET {$setString}{$whereString}";
         $query = $this->connection->prepare($sql);
         $query->execute($params);
+
+        $this->resetConditions();
         return $query->rowCount();
     }
 
@@ -78,10 +80,11 @@ class PDOQueryBuilder
         }
 
         $whereString = ' WHERE ' . implode(' AND ', $whereParts);
-        $sql = "DELETE FROM {$this->table}{$whereString}";
+        $sql = "DELETE FROM `{$this->table}`{$whereString}";
         $query = $this->connection->prepare($sql);
         $query->execute($params);
 
+        $this->resetConditions();
         return $query->rowCount();
     }
 
@@ -90,11 +93,11 @@ class PDOQueryBuilder
         $columnsString = implode(',', array_map(function ($col) {
             return $col === '*' ? $col : "`$col`";
         }, $columns));
-//        var_dump($columnsString);
+
         $params = [];
         $whereParts = [];
         foreach ($this->conditions as [$column, $operator, $value]) {
-            $whereParts[] = "`$column` $operator ?";
+            $whereParts[] = "$column $operator ?";
             $params[] = $value;
         }
 
@@ -104,17 +107,34 @@ class PDOQueryBuilder
         $query = $this->connection->prepare($sql);
         $query->execute($params);
 
-        return $query->fetchAll(PDO::FETCH_OBJ);
+        $result = $query->fetchAll(PDO::FETCH_OBJ);
+        $this->resetConditions();
+        return $result;
     }
 
+    public function first(array $columns = ['*']): ?object
+    {
+        $result = $this->get($columns);
 
+        if (empty($result)) {
+            return null;
+        }
+
+        $row = (array) $result[0];
+        if ($columns === ['*']) {
+            $desiredOrder = ['id', 'email', 'link', 'name', 'user'];
+            $row = array_merge(array_flip($desiredOrder), $row);
+        }
+
+        return (object) $row;
+    }
 
 
     public function truncateAllTable()
     {
         $query = $this->connection->prepare("SHOW TABLES");
         $query->execute();
-        foreach($query->fetchAll(PDO::FETCH_COLUMN) as $table){
+        foreach ($query->fetchAll(PDO::FETCH_COLUMN) as $table) {
             $this->connection->prepare("TRUNCATE TABLE `{$table}`")->execute();
         }
     }
@@ -124,9 +144,18 @@ class PDOQueryBuilder
         $this->connection->beginTransaction();
     }
 
+    public function commit()
+    {
+        $this->connection->commit();
+    }
+
     public function rollback()
     {
         $this->connection->rollBack();
+    }
 
+    protected function resetConditions(): void
+    {
+        $this->conditions = [];
     }
 }

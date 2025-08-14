@@ -105,6 +105,24 @@ class PDOQueryBuilderTest extends TestCase
         $this->assertEquals(['name', 'user'], array_keys($result));
 
     }
+    public function testItCanFirstRow()
+    {
+        $this->multipleInsertIntoDB(10, ['name' => 'First Row']);
+
+        $result = $this->queryBuilder
+            ->table('bugs')
+            ->where('name', 'First Row')
+            ->first();
+
+        $this->assertIsObject($result);
+        $this->assertSame(
+            ['id', 'email', 'link', 'name', 'user'],
+            array_keys((array) $result)
+        );
+    }
+
+
+
     /**
      * @throws ConfigFileNotFoundException
      */
