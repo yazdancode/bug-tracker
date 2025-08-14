@@ -129,6 +129,22 @@ class PDOQueryBuilder
         return (object) $row;
     }
 
+    public function find(int $id, array $columns = ['*']): ?object
+    {
+        return $this->table($this->table)
+            ->where('id', $id)
+            ->first($columns);
+    }
+
+    public function findBy(string $column, mixed $value, array $columns = ['*']): ?object
+    {
+        return $this->table($this->table)
+            ->where($column, $value)
+            ->first($columns);
+    }
+
+
+
 
     public function truncateAllTable()
     {

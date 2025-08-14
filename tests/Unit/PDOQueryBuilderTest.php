@@ -37,7 +37,6 @@ class PDOQueryBuilderTest extends TestCase
 
     public function testItCanUpdateDate()
     {
-        // ابتدا یک رکورد درج می‌کنیم
         $this->insertIntoDb();
         $result = $this->queryBuilder
             ->table('bugs')
@@ -73,7 +72,6 @@ class PDOQueryBuilderTest extends TestCase
         $this->assertEquals(4, $result);
     }
 
-
     public function testItCanFetchData()
     {
         $this->multipleInsertIntoDB(4);
@@ -85,14 +83,13 @@ class PDOQueryBuilderTest extends TestCase
             ->get();
         $this->assertIsArray($result);
         $this->assertCount(10, $result);
-
-
     }
 
     public function testItCanFetchSpecificColumns()
     {
         $this->multipleInsertIntoDB(10);
         $this->multipleInsertIntoDB(10, ['name' => 'New']);
+
         $result = $this->queryBuilder
             ->table('bugs')
             ->where('name', 'New')
@@ -100,11 +97,11 @@ class PDOQueryBuilderTest extends TestCase
 
         $this->assertIsArray($result);
         $this->assertSame(['name', 'user'], array_keys((array)$result[0]));
-//        var_dump(json_decode(json_encode($result[0]), true));
+
         $result = json_decode(json_encode($result[0]), true);
         $this->assertEquals(['name', 'user'], array_keys($result));
-
     }
+
     public function testItCanFirstRow()
     {
         $this->multipleInsertIntoDB(10, ['name' => 'First Row']);
@@ -115,13 +112,32 @@ class PDOQueryBuilderTest extends TestCase
             ->first();
 
         $this->assertIsObject($result);
-        $this->assertSame(
-            ['id', 'email', 'link', 'name', 'user'],
-            array_keys((array) $result)
-        );
+        $this->assertSame(['id', 'email', 'link', 'name', 'user'], array_keys((array) $result));
     }
 
+    public function testItCanFindWithID()
+    {
+        $id = $this->insertIntoDb(['name'=>'for Find']);
 
+        $result = $this->queryBuilder
+            ->table('bugs')
+            ->find($id);
+
+        $this->assertIsObject($result);
+        $this->assertSame($id, $result->id);
+    }
+
+    public function testItCanFindBy()
+    {
+        $id = $this->insertIntoDb(['name'=>'for Find By']);
+
+        $result = $this->queryBuilder
+            ->table('bugs')
+            ->findBy('name', 'for Find By');
+
+        $this->assertIsObject($result);
+        $this->assertSame($id, $result->id);
+    }
 
     /**
      * @throws ConfigFileNotFoundException
@@ -145,16 +161,13 @@ class PDOQueryBuilderTest extends TestCase
 
     private function multipleInsertIntoDB($count, $options=[])
     {
-        for ($i = 1; $i <=$count; $i++){
+        for ($i = 1; $i <= $count; $i++){
             $this->insertIntoDb($options);
         }
-
-
     }
 
     public function tearDown(): void
     {
-//        $this->queryBuilder->truncateAllTable();
         $this->queryBuilder->rollback();
         parent::tearDown();
     }
