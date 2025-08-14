@@ -47,6 +47,18 @@ class PDOQueryBuilderTest extends TestCase
         $this->assertEquals(1, $result);
     }
 
+    public function testItCanUpdateMultipleWhere()
+    {
+        $this->insertIntoDb();
+        $this->insertIntoDb(['user'=> 'morteza ahmadi']);
+        $result = $this->queryBuilder
+            ->table('bugs')
+            ->where('user', 'Mehrdad Sami')
+            ->where('link', 'https://link.com')
+            ->update(['name'=>'After Multiple Where']);
+        $this->assertEquals(1,$result);
+    }
+
     /**
      * @throws Exception
      */
@@ -71,14 +83,14 @@ class PDOQueryBuilderTest extends TestCase
         return Config::get('database', 'pdo_testing');
     }
 
-    private function insertIntoDb(): int
+    private function insertIntoDb($options= []): int
     {
-        $data = [
+        $data = array_merge([
             'name'  => 'First Bug Report',
             'link'  => 'https://link.com',
             'user'  => 'Mehrdad Sami',
             'email' => 'yshabanei@gmail.com'
-        ];
+        ], $options);
 
         return $this->queryBuilder->table('bugs')->create($data);
     }
