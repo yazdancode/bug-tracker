@@ -87,23 +87,28 @@ class PDOQueryBuilder
 
     public function get(array $columns = ['*']): array
     {
-        $columnsString = implode(',', $columns);
-
+        $columnsString = implode(',', array_map(function ($col) {
+            return $col === '*' ? $col : "`$col`";
+        }, $columns));
+//        var_dump($columnsString);
         $params = [];
         $whereParts = [];
         foreach ($this->conditions as [$column, $operator, $value]) {
-            $whereParts[] = "$column $operator ?";
+            $whereParts[] = "`$column` $operator ?";
             $params[] = $value;
         }
 
         $whereString = $whereParts ? ' WHERE ' . implode(' AND ', $whereParts) : '';
 
-        $sql = "SELECT {$columnsString} FROM {$this->table}{$whereString}";
+        $sql = "SELECT {$columnsString} FROM `{$this->table}`{$whereString}";
         $query = $this->connection->prepare($sql);
         $query->execute($params);
 
-        return $query->fetchAll(PDO::FETCH_ASSOC);
+        return $query->fetchAll(PDO::FETCH_OBJ);
     }
+
+
+
 
     public function truncateAllTable()
     {

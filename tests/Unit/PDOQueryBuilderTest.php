@@ -83,10 +83,26 @@ class PDOQueryBuilderTest extends TestCase
             ->table('bugs')
             ->where('user', 'Morteza Ahmadi')
             ->get();
-        var_dump($result);
         $this->assertIsArray($result);
         $this->assertCount(10, $result);
 
+
+    }
+
+    public function testItCanFetchSpecificColumns()
+    {
+        $this->multipleInsertIntoDB(10);
+        $this->multipleInsertIntoDB(10, ['name' => 'New']);
+        $result = $this->queryBuilder
+            ->table('bugs')
+            ->where('name', 'New')
+            ->get(['name', 'user']);
+
+        $this->assertIsArray($result);
+        $this->assertSame(['name', 'user'], array_keys((array)$result[0]));
+//        var_dump(json_decode(json_encode($result[0]), true));
+        $result = json_decode(json_encode($result[0]), true);
+        $this->assertEquals(['name', 'user'], array_keys($result));
 
     }
     /**
