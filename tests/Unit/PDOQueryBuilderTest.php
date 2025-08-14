@@ -37,17 +37,11 @@ class PDOQueryBuilderTest extends TestCase
     {
         // ابتدا یک رکورد درج می‌کنیم
         $this->insertIntoDb();
-
-        // سپس آپدیت را روی همان رکورد انجام می‌دهیم
         $result = $this->queryBuilder
             ->table('bugs')
             ->where('user', 'Mehrdad Sami')
             ->where('email', 'yshabanei@gmail.com')
-            ->update([
-                'email' => 'Mehrdad@gmail.com'
-            ]);
-
-        // چون فقط یک رکورد باید آپدیت شود، انتظار داریم خروجی 1 باشد
+            ->update(['email' => 'Mehrdad@gmail.com']);
         $this->assertEquals(1, $result);
     }
 
@@ -69,5 +63,11 @@ class PDOQueryBuilderTest extends TestCase
         ];
 
         return $this->queryBuilder->table('bugs')->create($data);
+    }
+
+    public function tearDown(): void
+    {
+        $this->queryBuilder->truncateAllTable();
+        parent::tearDown();
     }
 }
