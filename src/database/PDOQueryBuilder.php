@@ -85,8 +85,6 @@ class PDOQueryBuilder
         return $query->rowCount();
     }
 
-
-
     public function truncateAllTable()
     {
         $query = $this->connection->prepare("SHOW TABLES");
@@ -94,5 +92,16 @@ class PDOQueryBuilder
         foreach($query->fetchAll(PDO::FETCH_COLUMN) as $table){
             $this->connection->prepare("TRUNCATE TABLE `{$table}`")->execute();
         }
+    }
+
+    public function beginTransaction()
+    {
+        $this->connection->beginTransaction();
+    }
+
+    public function rollback()
+    {
+        $this->connection->rollBack();
+
     }
 }

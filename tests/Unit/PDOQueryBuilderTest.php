@@ -2,6 +2,7 @@
 
 namespace Tests\Unit;
 
+use Exception;
 use PHPUnit\Framework\TestCase;
 use Yshabanei\BugTracker\database\PDODatabaseConnection;
 use Yshabanei\BugTracker\database\PDOQueryBuilder;
@@ -22,6 +23,7 @@ class PDOQueryBuilderTest extends TestCase
     {
         $pdoConnection = new PDODatabaseConnection($this->getConfig());
         $this->queryBuilder = new PDOQueryBuilder($pdoConnection->connect());
+        $this->queryBuilder->beginTransaction();
 
         parent::setUp();
     }
@@ -45,6 +47,9 @@ class PDOQueryBuilderTest extends TestCase
         $this->assertEquals(1, $result);
     }
 
+    /**
+     * @throws Exception
+     */
     public function testItCanDeleteRecord()
     {
         $this->insertIntoDb();
@@ -57,10 +62,7 @@ class PDOQueryBuilderTest extends TestCase
             ->where('user', 'Mehrdad Sami')
             ->delete();
         $this->assertEquals(4, $result);
-
-
     }
-
     /**
      * @throws ConfigFileNotFoundException
      */
@@ -83,7 +85,8 @@ class PDOQueryBuilderTest extends TestCase
 
     public function tearDown(): void
     {
-        $this->queryBuilder->truncateAllTable();
+//        $this->queryBuilder->truncateAllTable();
+        $this->queryBuilder->rollback();
         parent::tearDown();
     }
 }
