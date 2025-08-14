@@ -16,8 +16,9 @@ class PDOQueryBuilderTest extends TestCase
     private PDOQueryBuilder $queryBuilder;
 
     /**
-     * @throws DatabaseConnectionException
+     * @throws ConfigFileNotFoundException
      * @throws ConfigNotValidException
+     * @throws DatabaseConnectionException
      */
     public function setUp(): void
     {
@@ -192,7 +193,7 @@ class PDOQueryBuilderTest extends TestCase
         return $this->queryBuilder->table('bugs')->create($data);
     }
 
-    private function multipleInsertIntoDB($count, $options=[])
+    private function multipleInsertIntoDB($count, $options=[]): void
     {
         for ($i = 1; $i <= $count; $i++){
             $this->insertIntoDb($options);

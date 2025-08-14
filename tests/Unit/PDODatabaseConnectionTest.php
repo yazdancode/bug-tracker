@@ -14,6 +14,7 @@ class PDODatabaseConnectionTest extends TestCase
 {
     /**
      * @throws ConfigFileNotFoundException
+     * @throws ConfigNotValidException
      */
     public function testPDODatabaseConnectionImplementsDatabaseConnectionInterface()
     {
@@ -29,7 +30,11 @@ class PDODatabaseConnectionTest extends TestCase
     public function testConnectMethodShouldReturnPDODatabaseConnection()
     {
         $config = $this->getConfig();
-        $pdoConnection = new PDODatabaseConnection($config);
+        try {
+            $pdoConnection = new PDODatabaseConnection($config);
+        } catch (ConfigNotValidException) {
+
+        }
         $pdoHandler = $pdoConnection->connect(); // اینجا $this برمی‌گرده
         $this->assertInstanceOf(PDODatabaseConnection::class, $pdoHandler);
         return $pdoConnection;
@@ -52,7 +57,11 @@ class PDODatabaseConnectionTest extends TestCase
         $config = $this->getConfig();
         $config['database'] = 'invalid_db_name';
 //        unset($config['db_user']);
-        $pdoConnection = new PDODatabaseConnection($config);
+        try {
+            $pdoConnection = new PDODatabaseConnection($config);
+        } catch (ConfigNotValidException) {
+
+        }
         $pdoConnection->connect();
     }
 
@@ -60,11 +69,19 @@ class PDODatabaseConnectionTest extends TestCase
     {
         $this->expectException(ConfigNotValidException::class);
 
-        $config = $this->getConfig();
+        try {
+            $config = $this->getConfig();
+        } catch (ConfigFileNotFoundException) {
+
+        }
         unset($config['db_user']);
 
         $pdoConnection = new PDODatabaseConnection($config);
-        $pdoConnection->connect();
+        try {
+            $pdoConnection->connect();
+        } catch (DatabaseConnectionException) {
+
+        }
     }
 
     /**

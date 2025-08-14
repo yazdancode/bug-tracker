@@ -2,6 +2,7 @@
 
 namespace Yshabanei\BugTracker\database;
 
+use Exception;
 use Yshabanei\BugTracker\contracts\DatabaseConnetionInterface;
 use PDO;
 
@@ -28,7 +29,7 @@ class PDOQueryBuilder
         $fields = implode(',', array_map(fn($col) => "`$col`", array_keys($data)));
         $placeholdersString = implode(',', $placeholders);
 
-        $sql = "INSERT INTO `{$this->table}` ($fields) VALUES ($placeholdersString)";
+        $sql = "INSERT INTO `$this->table` ($fields) VALUES ($placeholdersString)";
         $query = $this->connection->prepare($sql);
         $query->execute(array_values($data));
 
@@ -58,7 +59,7 @@ class PDOQueryBuilder
         }
         $whereString = $whereParts ? ' WHERE ' . implode(' AND ', $whereParts) : '';
 
-        $sql = "UPDATE `{$this->table}` SET {$setString}{$whereString}";
+        $sql = "UPDATE `$this->table` SET $setString$whereString";
         $query = $this->connection->prepare($sql);
         $query->execute($params);
 
@@ -66,10 +67,13 @@ class PDOQueryBuilder
         return $query->rowCount();
     }
 
+    /**
+     * @throws Exception
+     */
     public function delete(): int
     {
         if (empty($this->conditions)) {
-            throw new \Exception("Cannot delete without conditions.");
+            throw new Exception("Cannot delete without conditions.");
         }
 
         $whereParts = [];
@@ -80,7 +84,7 @@ class PDOQueryBuilder
         }
 
         $whereString = ' WHERE ' . implode(' AND ', $whereParts);
-        $sql = "DELETE FROM `{$this->table}`{$whereString}";
+        $sql = "DELETE FROM `$this->table`$whereString";
         $query = $this->connection->prepare($sql);
         $query->execute($params);
 
@@ -103,7 +107,7 @@ class PDOQueryBuilder
 
         $whereString = $whereParts ? ' WHERE ' . implode(' AND ', $whereParts) : '';
 
-        $sql = "SELECT {$columnsString} FROM `{$this->table}`{$whereString}";
+        $sql = "SELECT $columnsString FROM `$this->table`$whereString";
         $query = $this->connection->prepare($sql);
         $query->execute($params);
 
@@ -146,26 +150,21 @@ class PDOQueryBuilder
 
 
 
-    public function truncateAllTable()
+    public function truncateAllTable(): void
     {
         $query = $this->connection->prepare("SHOW TABLES");
         $query->execute();
         foreach ($query->fetchAll(PDO::FETCH_COLUMN) as $table) {
-            $this->connection->prepare("TRUNCATE TABLE `{$table}`")->execute();
+            $this->connection->prepare("TRUNCATE TABLE `$table`")->execute();
         }
     }
 
-    public function beginTransaction()
+    public function beginTransaction(): void
     {
         $this->connection->beginTransaction();
     }
 
-    public function commit()
-    {
-        $this->connection->commit();
-    }
-
-    public function rollback()
+    public function rollback(): void
     {
         $this->connection->rollBack();
     }
