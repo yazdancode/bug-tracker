@@ -16,7 +16,6 @@ class PDOQueryBuilderTest extends TestCase
     private PDOQueryBuilder $queryBuilder;
 
     /**
-     * @throws ConfigFileNotFoundException
      * @throws ConfigNotValidException
      * @throws DatabaseConnectionException
      */
@@ -174,11 +173,15 @@ class PDOQueryBuilderTest extends TestCase
     }
 
     /**
-     * @throws ConfigFileNotFoundException
+     * @return array
      */
-    private function getConfig(): ?array
+    private function getConfig(): array
     {
-        return Config::get('database', 'pdo_testing');
+        try {
+            return Config::get('database', 'pdo_testing');
+        } catch (ConfigFileNotFoundException $e) {
+            $this->fail("Config file not found: " . $e->getMessage());
+        }
     }
 
     private function insertIntoDb($options= []): int
