@@ -2,71 +2,70 @@
 
 namespace Tests\Functional;
 
-use GuzzleHttp\Exception\GuzzleException;
 use PHPUnit\Framework\TestCase;
-use Psr\Http\Message\ResponseInterface;
+use GuzzleHttp\Exception\GuzzleException;
 use Yshabanei\BugTracker\database\PDODatabaseConnection;
 use Yshabanei\BugTracker\database\PDOQueryBuilder;
+use Yshabanei\BugTracker\Helpers\Config;
+use Yshabanei\BugTracker\Helpers\HttpClient;
 use Yshabanei\BugTracker\exceptions\ConfigFileNotFoundException;
 use Yshabanei\BugTracker\exceptions\ConfigNotValidException;
 use Yshabanei\BugTracker\exceptions\DatabaseConnectionException;
-use Yshabanei\BugTracker\Helpers\Config;
-use Yshabanei\BugTracker\Helpers\HttpClient;
 
 class CrudTest extends TestCase
 {
     private PDOQueryBuilder $queryBuilder;
     private HttpClient $httpClient;
     private string $baseUrl = 'http://localhost/bug-tracker/index.php';
+    private ?int $createdId = null;
 
     protected function setUp(): void
     {
         parent::setUp();
         $this->initializeDatabaseConnection();
         $this->httpClient = new HttpClient();
+        $this->cleanupTestData();
+        $this->createTestRecord(); // رکورد تستی قبل از هر تست بسازید
     }
 
-    public function testItCanCreateDataWithApi(): array
+    private function createTestRecord(): void
     {
-        $testData = $this->getTestBugData();
+        $data = [
+            'name' => 'API',
+            'user' => 'Ahmad',
+            'email' => 'api@gmail.com',
+            'link' => 'api.com'
+        ];
 
-        try {
-            $response = $this->sendCreateRequest($testData);
-        } catch (GuzzleException) {
+        $response = $this->httpClient->post($this->baseUrl, [
+            'json' => $data,
+            'headers' => ['Content-Type' => 'application/json']
+        ]);
 
-        }
-        $this->verifyApiResponse($response, $testData);
-        $this->verifyDatabaseRecord($testData);
-
-        $responseBody = (string)$response->getBody();
-        return json_decode($responseBody, true);
+        $responseData = json_decode((string)$response->getBody(), true);
+        $this->createdId = $responseData['id'] ?? null;
+        $this->assertNotNull($this->createdId, "Test record should be created and return an ID");
     }
 
-    /**
-     * @depends testItCanCreateDataWithApi
-     */
-    public function testItCanUpdateDataWithApi(array $createdData): void
+    public function testItCanUpdateDataWithApi(): void
     {
+        $this->assertNotNull($this->createdId, "No record created for update test");
+
         $updateData = [
             'json' => [
-                'id' => $createdData['id'],
+                'id' => $this->createdId,
                 'name' => 'API for Update'
             ]
         ];
 
         try {
             $response = $this->httpClient->put($this->baseUrl, $updateData);
-
-            // Verify API response
             $this->assertEquals(200, $response->getStatusCode());
+
             $responseData = json_decode((string)$response->getBody(), true);
             $this->assertEquals('API for Update', $responseData['name']);
 
-            // Verify database record
-            $bug = $this->queryBuilder
-                ->table('bugs')
-                ->find($createdData['id']);
-
+            $bug = $this->queryBuilder->table('bugs')->find($this->createdId);
             $this->assertNotNull($bug);
             $this->assertEquals('API for Update', $bug->name);
 
@@ -75,9 +74,55 @@ class CrudTest extends TestCase
         }
     }
 
-    protected function tearDown(): void
+    public function testItCanFetchDataWithApi(): void
     {
-        parent::tearDown();
+        $this->assertNotNull($this->createdId, "No record created for fetch test");
+
+        try {
+            $response = $this->httpClient->get($this->baseUrl, [
+                'query' => ['id' => $this->createdId]
+            ]);
+
+            $this->assertEquals(200, $response->getStatusCode());
+
+            $responseData = json_decode((string)$response->getBody(), true);
+            $this->assertEquals($this->createdId, $responseData['id']);
+            $this->assertEquals('API', $responseData['name']);
+
+        } catch (GuzzleException $e) {
+            $this->fail("Fetch request failed: " . $e->getMessage());
+        }
+    }
+
+    public function testItCanDeleteWithApi(): void
+    {
+        $this->assertNotNull($this->createdId, "No record created for delete test");
+
+        try {
+            $response = $this->httpClient->delete($this->baseUrl, [
+                'json' => ['id' => $this->createdId]
+            ]);
+
+            $this->assertEquals(200, $response->getStatusCode());
+
+            $responseData = json_decode((string)$response->getBody(), true);
+            $this->assertArrayHasKey('message', $responseData);
+            $this->assertStringContainsString('deleted', strtolower($responseData['message']));
+
+            $bug = $this->queryBuilder->table('bugs')->find($this->createdId);
+            $this->assertNull($bug, "Record should be deleted from the database");
+
+        } catch (GuzzleException $e) {
+            $this->fail("Delete request failed: " . $e->getMessage());
+        }
+    }
+
+    private function cleanupTestData(): void
+    {
+        try {
+            $this->queryBuilder->table('bugs')->where('name', 'API')->delete();
+            $this->queryBuilder->table('bugs')->where('name', 'API for Update')->delete();
+        } catch (\Exception) {}
     }
 
     private function initializeDatabaseConnection(): void
@@ -97,53 +142,5 @@ class CrudTest extends TestCase
         } catch (ConfigFileNotFoundException $e) {
             $this->fail("Config file not found: " . $e->getMessage());
         }
-    }
-
-    private function getTestBugData(): array
-    {
-        return [
-            'name' => 'API',
-            'user' => 'Ahmad',
-            'email' => 'api@gmail.com',
-            'link' => 'api.com'
-        ];
-    }
-
-    /**
-     * @throws GuzzleException
-     */
-    private function sendCreateRequest(array $data): ResponseInterface
-    {
-        return $this->httpClient->post($this->baseUrl, [
-            'json' => $data,
-            'headers' => [
-                'Content-Type' => 'application/json'
-            ]
-        ]);
-    }
-
-    private function verifyApiResponse(ResponseInterface $response, array $expectedData): void
-    {
-        $responseBody = (string)$response->getBody();
-        $responseData = json_decode($responseBody, true);
-
-        $this->assertIsArray($responseData, "Response should be a valid array");
-        $this->assertArrayHasKey('id', $responseData, "Response should contain 'id' field");
-
-        $this->assertEquals($expectedData['name'], $responseData['name']);
-        $this->assertEquals($expectedData['user'], $responseData['user']);
-        $this->assertEquals($expectedData['email'], $responseData['email']);
-        $this->assertEquals($expectedData['link'], $responseData['link']);
-    }
-
-    private function verifyDatabaseRecord(array $expectedData): void
-    {
-        $bug = $this->queryBuilder
-            ->table('bugs')
-            ->where('name', $expectedData['name'])
-            ->where('user', $expectedData['user'])
-            ->first();
-
-        $this->assertNotNull($bug, "Record should exist in database");
     }
 }

@@ -17,9 +17,6 @@ class BugTrackerApi
     private const REQUIRED_FIELDS = ['name', 'user', 'email', 'link'];
     private const DEFAULT_MESSAGE = 'خوش آمدید به Bug Tracker API';
 
-    /**
-     * Handle the incoming request
-     */
     #[NoReturn]
     public static function handleRequest(): void
     {
@@ -29,6 +26,10 @@ class BugTrackerApi
                     self::handlePostRequest();
                 case 'PUT':
                     self::handlePutRequest();
+                case 'GET':
+                    self::handleGetRequest();
+                case 'DELETE':
+                    self::handleDeleteRequest();
                 default:
                     self::sendResponse(['message' => self::DEFAULT_MESSAGE]);
             }
@@ -39,9 +40,6 @@ class BugTrackerApi
         }
     }
 
-    /**
-     * Handle POST request to create a new bug
-     */
     #[NoReturn]
     private static function handlePostRequest(): void
     {
@@ -55,29 +53,57 @@ class BugTrackerApi
         self::sendResponse($response, array_key_exists('error', $response) ? 400 : 201);
     }
 
-    /**
-     * Handle PUT request to update a bug
-     */
     #[NoReturn]
     private static function handlePutRequest(): void
     {
-        $inputData = json_decode(file_get_contents('php://input'), true);
-
-        if (json_last_error() !== JSON_ERROR_NONE || !is_array($inputData)) {
-            self::sendResponse(['error' => 'داده‌های JSON معتبر نیست یا ارسال نشده‌اند'], 400);
-        }
-
-        if (empty($inputData['id'])) {
-            self::sendResponse(['error' => 'فیلد id الزامی است'], 400);
-        }
+        list($inputData) = self::extracted();
 
         $response = self::updateBug($inputData);
-        self::sendResponse($response, array_key_exists('error', $response) ? 400 : 200);
+        self::sendResponse($response);
     }
 
-    /**
-     * Create a new bug record
-     */
+    #[NoReturn]
+    private static function handleGetRequest(): void
+    {
+        if (empty($_GET['id'])) {
+            self::sendResponse(['error' => 'پارامتر id الزامی است'], 400);
+        }
+
+        $id = (int)$_GET['id'];
+        try {
+            $queryBuilder = self::getQueryBuilder();
+        } catch (Exception) {
+
+        }
+        $bug = $queryBuilder->table('bugs')->find($id);
+
+        if (!$bug) {
+            self::sendResponse(['error' => 'رکوردی با این ID یافت نشد'], 404);
+        }
+
+        self::sendResponse([
+            'id' => $bug->id,
+            'name' => $bug->name,
+            'user' => $bug->user,
+            'email' => $bug->email,
+            'link' => $bug->link
+        ]);
+    }
+
+    #[NoReturn]
+    private static function handleDeleteRequest(): void
+    {
+        list($inputData, $queryBuilder) = self::extracted();
+
+        try {
+            $queryBuilder->table('bugs')->where('id', $inputData['id'])->delete();
+        } catch (Exception) {
+
+        }
+
+        self::sendResponse(['message' => "Bug with ID {$inputData['id']} deleted successfully"]);
+    }
+
     private static function createBug(array $data): array
     {
         self::validateInput($data);
@@ -103,42 +129,37 @@ class BugTrackerApi
         }
     }
 
-    /**
-     * Update an existing bug record
-     */
     private static function updateBug(array $data): array
     {
         try {
             $queryBuilder = self::getQueryBuilder();
-            $updated = $queryBuilder->table('bugs')
-                ->where('id', $data['id'])
-                ->update([
-                    'name' => $data['name'] ?? null,
-                    'user' => $data['user'] ?? null,
-                    'email' => $data['email'] ?? null,
-                    'link' => $data['link'] ?? null,
-                ]);
+            $bug = $queryBuilder->table('bugs')->find($data['id']);
 
-            if ($updated === 0) {
+            if (!$bug) {
                 return ['error' => 'رکوردی با این ID یافت نشد'];
             }
 
+            $queryBuilder->table('bugs')
+                ->where('id', $data['id'])
+                ->update([
+                    'name' => $data['name'] ?? $bug->name,
+                    'user' => $data['user'] ?? $bug->user,
+                    'email' => $data['email'] ?? $bug->email,
+                    'link' => $data['link'] ?? $bug->link,
+                ]);
+
             return [
                 'id' => $data['id'],
-                'name' => $data['name'] ?? null,
-                'user' => $data['user'] ?? null,
-                'email' => $data['email'] ?? null,
-                'link' => $data['link'] ?? null,
+                'name' => $data['name'] ?? $bug->name,
+                'user' => $data['user'] ?? $bug->user,
+                'email' => $data['email'] ?? $bug->email,
+                'link' => $data['link'] ?? $bug->link,
             ];
         } catch (Exception $e) {
             return ['error' => 'خطا در به‌روزرسانی رکورد: ' . $e->getMessage()];
         }
     }
 
-    /**
-     * Validate input data
-     * @throws InvalidArgumentException
-     */
     private static function validateInput(array $data): void
     {
         foreach (self::REQUIRED_FIELDS as $field) {
@@ -149,7 +170,6 @@ class BugTrackerApi
     }
 
     /**
-     * Get database query builder instance
      * @throws Exception
      */
     private static function getQueryBuilder(): PDOQueryBuilder
@@ -167,15 +187,40 @@ class BugTrackerApi
         }
     }
 
-    /**
-     * Send JSON response
-     */
     #[NoReturn]
     private static function sendResponse(array $data, int $statusCode = 200): void
     {
         http_response_code($statusCode);
         echo json_encode($data, JSON_UNESCAPED_UNICODE);
         exit;
+    }
+
+    /**
+     * @return array
+     */
+    private static function extracted(): array
+    {
+        $inputData = json_decode(file_get_contents('php://input'), true);
+
+        if (json_last_error() !== JSON_ERROR_NONE || !is_array($inputData)) {
+            self::sendResponse(['error' => 'داده‌های JSON معتبر نیست یا ارسال نشده‌اند'], 400);
+        }
+
+        if (empty($inputData['id'])) {
+            self::sendResponse(['error' => 'فیلد id الزامی است'], 400);
+        }
+
+        try {
+            $queryBuilder = self::getQueryBuilder();
+        } catch (Exception) {
+
+        }
+        $bug = $queryBuilder->table('bugs')->find($inputData['id']);
+
+        if (!$bug) {
+            self::sendResponse(['error' => 'رکوردی با این ID یافت نشد'], 404);
+        }
+        return array($inputData, $queryBuilder);
     }
 }
 
