@@ -1,5 +1,6 @@
 <?php
 
+use JetBrains\PhpStorm\NoReturn;
 use Yshabanei\BugTracker\database\PDODatabaseConnection;
 use Yshabanei\BugTracker\database\PDOQueryBuilder;
 use Yshabanei\BugTracker\exceptions\ConfigFileNotFoundException;
@@ -11,65 +12,117 @@ require_once './vendor/autoload.php';
 
 header('Content-Type: application/json');
 
-/**
- * ثبت یک باگ در دیتابیس
- *
- * @param array $data آرایه شامل name, user, email, link
- * @return array پاسخ JSON شامل اطلاعات رکورد ثبت شده یا خطا
- */
-function createBug(array $data): array
+class BugTrackerApi
 {
-    try {
-        $dbConfig = Config::get('database', 'pdo_testing');
-        $pdoConnection = new PDODatabaseConnection($dbConfig);
-        $pdo = $pdoConnection->connect();
-        $queryBuilder = new PDOQueryBuilder($pdo);
-    } catch (ConfigFileNotFoundException | ConfigNotValidException | DatabaseConnectionException $e) {
-        return ['error' => "خطا در اتصال به دیتابیس: " . $e->getMessage()];
-    }
+    private const REQUIRED_FIELDS = ['name', 'user', 'email', 'link'];
+    private const DEFAULT_MESSAGE = 'خوش آمدید به Bug Tracker API';
 
-    // بررسی فیلدهای لازم
-    $required = ['name', 'user', 'email', 'link'];
-    foreach ($required as $field) {
-        if (!isset($data[$field])) {
-            return ['error' => "فیلد {$field} فرستاده نشده است"];
+    /**
+     * Handle the incoming request
+     */
+    #[NoReturn]
+    public static function handleRequest(): void
+    {
+        try {
+            switch ($_SERVER['REQUEST_METHOD']) {
+                case 'POST':
+                    self::handlePostRequest();
+                default:
+                    self::sendResponse(['message' => self::DEFAULT_MESSAGE]);
+            }
+        } catch (InvalidArgumentException $e) {
+            self::sendResponse(['error' => $e->getMessage()], 400);
+        } catch (Exception $e) {
+            self::sendResponse(['error' => 'خطای سرور: ' . $e->getMessage()], 500);
         }
     }
 
-    // ایجاد رکورد جدید
-    try {
-        $id = $queryBuilder->table('bugs')->create([
-            'name' => $data['name'],
-            'user' => $data['user'],
-            'email' => $data['email'],
-            'link' => $data['link'],
-        ]);
+    /**
+     * Handle POST request to create a new bug
+     */
+    #[NoReturn]
+    private static function handlePostRequest(): void
+    {
+        $inputData = json_decode(file_get_contents('php://input'), true);
 
-        return [
-            'id' => $id,
-            'name' => $data['name'],
-            'user' => $data['user'],
-            'email' => $data['email'],
-            'link' => $data['link']
-        ];
-    } catch (\Exception $e) {
-        return ['error' => 'خطا در ایجاد رکورد: ' . $e->getMessage()];
+        if (json_last_error() !== JSON_ERROR_NONE || !is_array($inputData)) {
+            self::sendResponse(['error' => 'داده‌های JSON معتبر نیست یا ارسال نشده‌اند'], 400);
+        }
+
+        $response = self::createBug($inputData);
+        self::sendResponse($response, array_key_exists('error', $response) ? 400 : 201);
     }
-}
 
-// دریافت داده‌های JSON
-$inputData = json_decode(file_get_contents('php://input'), true);
+    /**
+     * Create a new bug record
+     */
+    private static function createBug(array $data): array
+    {
+        self::validateInput($data);
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    if (!$inputData) {
-        echo json_encode(['error' => 'داده‌های JSON معتبر نیست یا ارسال نشده‌اند']);
+        try {
+            $queryBuilder = self::getQueryBuilder();
+            $id = $queryBuilder->table('bugs')->create([
+                'name' => $data['name'],
+                'user' => $data['user'],
+                'email' => $data['email'],
+                'link' => $data['link'],
+            ]);
+
+            return [
+                'id' => $id,
+                'name' => $data['name'],
+                'user' => $data['user'],
+                'email' => $data['email'],
+                'link' => $data['link']
+            ];
+        } catch (Exception $e) {
+            return ['error' => 'خطا در ایجاد رکورد: ' . $e->getMessage()];
+        }
+    }
+
+    /**
+     * Validate input data
+     * @throws InvalidArgumentException
+     */
+    private static function validateInput(array $data): void
+    {
+        foreach (self::REQUIRED_FIELDS as $field) {
+            if (empty($data[$field])) {
+                throw new InvalidArgumentException("فیلد $field فرستاده نشده است یا خالی است");
+            }
+        }
+    }
+
+    /**
+     * Get database query builder instance
+     * @throws Exception
+     */
+    private static function getQueryBuilder(): PDOQueryBuilder
+    {
+        try {
+            $dbConfig = Config::get('database', 'pdo_testing');
+            $pdoConnection = new PDODatabaseConnection($dbConfig);
+            return new PDOQueryBuilder($pdoConnection->connect());
+        } catch (ConfigFileNotFoundException) {
+            throw new Exception('پیکربندی دیتابیس یافت نشد');
+        } catch (ConfigNotValidException) {
+            throw new Exception('پیکربندی دیتابیس معتبر نیست');
+        } catch (DatabaseConnectionException) {
+            throw new Exception('خطا در اتصال به دیتابیس');
+        }
+    }
+
+    /**
+     * Send JSON response
+     */
+    #[NoReturn]
+    private static function sendResponse(array $data, int $statusCode = 200): void
+    {
+        http_response_code($statusCode);
+        echo json_encode($data, JSON_UNESCAPED_UNICODE);
         exit;
     }
-
-    $response = createBug($inputData);
-    echo json_encode($response);
-    exit;
 }
 
-// اگر روش GET یا چیز دیگری بود
-echo json_encode(['message' => 'خوش آمدید به Bug Tracker API']);
+BugTrackerApi::handleRequest();
