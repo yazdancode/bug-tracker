@@ -13,7 +13,7 @@ return [
         'host' => '127.0.0.1',
         'database' => 'bug_tracker_testing',
         'db_user' => 'root',
-        'db_password' => '',   // پسورد دیتابیس تستت
+        'db_password' => '',
         'charset' => 'utf8mb4'
     ],
 

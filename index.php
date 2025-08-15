@@ -27,6 +27,8 @@ class BugTrackerApi
             switch ($_SERVER['REQUEST_METHOD']) {
                 case 'POST':
                     self::handlePostRequest();
+                case 'PUT':
+                    self::handlePutRequest();
                 default:
                     self::sendResponse(['message' => self::DEFAULT_MESSAGE]);
             }
@@ -54,6 +56,26 @@ class BugTrackerApi
     }
 
     /**
+     * Handle PUT request to update a bug
+     */
+    #[NoReturn]
+    private static function handlePutRequest(): void
+    {
+        $inputData = json_decode(file_get_contents('php://input'), true);
+
+        if (json_last_error() !== JSON_ERROR_NONE || !is_array($inputData)) {
+            self::sendResponse(['error' => 'داده‌های JSON معتبر نیست یا ارسال نشده‌اند'], 400);
+        }
+
+        if (empty($inputData['id'])) {
+            self::sendResponse(['error' => 'فیلد id الزامی است'], 400);
+        }
+
+        $response = self::updateBug($inputData);
+        self::sendResponse($response, array_key_exists('error', $response) ? 400 : 200);
+    }
+
+    /**
      * Create a new bug record
      */
     private static function createBug(array $data): array
@@ -78,6 +100,38 @@ class BugTrackerApi
             ];
         } catch (Exception $e) {
             return ['error' => 'خطا در ایجاد رکورد: ' . $e->getMessage()];
+        }
+    }
+
+    /**
+     * Update an existing bug record
+     */
+    private static function updateBug(array $data): array
+    {
+        try {
+            $queryBuilder = self::getQueryBuilder();
+            $updated = $queryBuilder->table('bugs')
+                ->where('id', $data['id'])
+                ->update([
+                    'name' => $data['name'] ?? null,
+                    'user' => $data['user'] ?? null,
+                    'email' => $data['email'] ?? null,
+                    'link' => $data['link'] ?? null,
+                ]);
+
+            if ($updated === 0) {
+                return ['error' => 'رکوردی با این ID یافت نشد'];
+            }
+
+            return [
+                'id' => $data['id'],
+                'name' => $data['name'] ?? null,
+                'user' => $data['user'] ?? null,
+                'email' => $data['email'] ?? null,
+                'link' => $data['link'] ?? null,
+            ];
+        } catch (Exception $e) {
+            return ['error' => 'خطا در به‌روزرسانی رکورد: ' . $e->getMessage()];
         }
     }
 

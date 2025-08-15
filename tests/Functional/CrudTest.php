@@ -16,17 +16,17 @@ use Yshabanei\BugTracker\Helpers\HttpClient;
 class CrudTest extends TestCase
 {
     private PDOQueryBuilder $queryBuilder;
-    private ?HttpClient $httpClient = null;
+    private HttpClient $httpClient;
+    private string $baseUrl = 'http://localhost/bug-tracker/index.php';
 
     protected function setUp(): void
     {
         parent::setUp();
-
         $this->initializeDatabaseConnection();
         $this->httpClient = new HttpClient();
     }
 
-    public function testItCanCreateDataWithApi(): void
+    public function testItCanCreateDataWithApi(): array
     {
         $testData = $this->getTestBugData();
 
@@ -37,11 +37,46 @@ class CrudTest extends TestCase
         }
         $this->verifyApiResponse($response, $testData);
         $this->verifyDatabaseRecord($testData);
+
+        $responseBody = (string)$response->getBody();
+        return json_decode($responseBody, true);
+    }
+
+    /**
+     * @depends testItCanCreateDataWithApi
+     */
+    public function testItCanUpdateDataWithApi(array $createdData): void
+    {
+        $updateData = [
+            'json' => [
+                'id' => $createdData['id'],
+                'name' => 'API for Update'
+            ]
+        ];
+
+        try {
+            $response = $this->httpClient->put($this->baseUrl, $updateData);
+
+            // Verify API response
+            $this->assertEquals(200, $response->getStatusCode());
+            $responseData = json_decode((string)$response->getBody(), true);
+            $this->assertEquals('API for Update', $responseData['name']);
+
+            // Verify database record
+            $bug = $this->queryBuilder
+                ->table('bugs')
+                ->find($createdData['id']);
+
+            $this->assertNotNull($bug);
+            $this->assertEquals('API for Update', $bug->name);
+
+        } catch (GuzzleException $e) {
+            $this->fail("Update request failed: " . $e->getMessage());
+        }
     }
 
     protected function tearDown(): void
     {
-        $this->httpClient = null;
         parent::tearDown();
     }
 
@@ -79,7 +114,7 @@ class CrudTest extends TestCase
      */
     private function sendCreateRequest(array $data): ResponseInterface
     {
-        return $this->httpClient->post('http://localhost/bug-tracker/index.php', [
+        return $this->httpClient->post($this->baseUrl, [
             'json' => $data,
             'headers' => [
                 'Content-Type' => 'application/json'
@@ -87,7 +122,7 @@ class CrudTest extends TestCase
         ]);
     }
 
-    private function verifyApiResponse($response, array $expectedData): void
+    private function verifyApiResponse(ResponseInterface $response, array $expectedData): void
     {
         $responseBody = (string)$response->getBody();
         $responseData = json_decode($responseBody, true);
